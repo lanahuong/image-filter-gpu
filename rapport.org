@@ -1,0 +1,74 @@
+#+TITLE: Rapport mini-projet d'APM
+#+AUTHOR: Lana Huong Scravaglieri
+#+DATE: 16-02-2022
+
+L'objectif de ce projet était d'implémenter un ensemble de kernels en CUDA qui
+effectuent diverses transformations sur une image. Les GPU sont
+particuliairement adaptés pour le traitement de l'image car ils pousses le SIMD
+à son maximum : tous les pixels de l'image subissent les mêmes transformations
+tous en même temps.
+
+* Organisation du code
+
+Les kernels se trouvent dans le ficher ~kernels.cu~ ainsi que des fonctions qui
+permettent des transformations plus complexes et appellent plusieurs kernels ou
+effectuent un paramétrage avant.
+
+Dans le fichier ~modif_img.cu~, j'ai utilisé la bibliothèque ~argp~ pour
+accepter des paramètres d'entrée et des flags. Le programme peut donc prendre un
+paramètre qui est le nom du fichier image à traiter, si aucun n'est fournit on
+traitera par défaut l'image ~img.jpg~. Le filtre à appliquer à l'image est
+choisi à l'aide d'un flag.  Le programme n'applique qu'un filtre à la fois. Pour
+cette raison j'ai changé l'enrgistrement de l'image au format JPEG ce qui permet
+d'appliquer plusieurs filtres à la suite.  Une autre raison est que l'image PNG
+était presque 10 fois plus grosse ce qui posait problème pour ma connexion.
+
+Avec le flag ~--help~ on peut consulter les flags disponible et leur effet.
+
+* Détails sur quelques kernels
+
+** Flou moyen
+
+J'ai implémenté le flou moyen de 2 façon différentes. La première est le
+~kernel_blur~ qui récupère les voisins directes et fait les moyennes "à la
+main". La seconde est la fonction ~run_blur_~ qui appelle un kernel de
+convolution ~kernel_convolution_rgb~ après avoir préparé et envoyé sur le GPU le
+kernel (matrice) correspondant au flou décrit dans le sujet. Le kernel est mis
+en mémoire partagée pour exploiter la mémoire de bloc.
+
+On peut appliquer n fois ce flou avec le flag ~--static-blur=n~. C'est le
+~kernel_blur~ qui est appellé et non la convolution mais les 2 sont
+interchangeables.
+
+À partir du kernel de convolution j'ai également implémenté une fonction
+~run_blur~ qui crée un kernel (matrice) pour un flou moyen prennant en compte
+tous les voisins et dont on peut paramétrer le rayon. On l'appelle avec le flag
+~--blur r~ où r est le rayon.
+
+Le kernel de convolution est loin d'être optimal : pour simplifier je ne traite
+pas les pixels en bordure donc ils ne sont pas floutés et les threads qui
+auraient dû traiter ces pixels sont idle. On pourrait continuer d'admettre que
+ces pixels ne seront pas flouté et modifier un peu le code pour éviter les threads
+idles ou bien ajouter un padding de la taille nécessaire pour pouvoir traiter
+ces pixels normalement. Dans ce dernier cas, il faut encore choisir la méthode
+de padding (le padding en mirroir donne de bon résultats apparement).
+
+** SOBEL
+
+La méthode SOBEL s'appuie sur 2 convolutions qui calculent le gradiant de couleur selon
+l'axe horizontal et vertical. Je me suis donc appuyée sur le code de convolution précédent
+pour l'implémentation de ce filtre. Je n'utilise qu'un seul kernel (matrice) car la seconde
+convolution utilise la transposé.
+
+** Pop-Art
+
+Pour cette transformation les streams sont plus efficacent car ils permettent de
+faire des transfères asychrones vers et depuis le GPU et de réutiliser les kernels
+déjà écrits. Sans les streams, il faudrait décider dans quelle partie de l'image le
+pixel se situe ce qui crée des branchements peu efficaces sur un GPU.
+
+J'ai implémenté un kernel qui réduit l'image à un quart de sa taille initiale.
+Ensuite, j'utilise les streams pour envoyer l'image réduite sur le GPU lui appliquer un filtre
+indépendement du traitement des autres exemplaires.
+
+Je recopie les 4 images dans la frame initiale depuis le CPU.
