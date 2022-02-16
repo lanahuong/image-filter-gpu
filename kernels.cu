@@ -343,3 +343,40 @@ void run_popart(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp,
   free(img_small);
   cudaFree(d_img_small);
 }
+
+__global__
+void kernel_negative(unsigned int* img, unsigned size) {
+    // Compute index of thread
+    int g_block_idx = blockIdx.x + blockIdx.y * gridDim.x;
+    int th_block = blockDim.x * blockDim.y;
+    int g_idx = g_block_idx * th_block + threadIdx.x + threadIdx.y * blockDim.x;
+
+    // Compute index of pixel to alter
+    int k = g_idx * 3;
+
+    // Compute grey color and assign it to all componant
+    if (g_idx<size) {
+        img[k] = 255 - img[k];
+        img[k + 1] = 255 - img[k + 1];
+        img[k + 2] = 255 - img[k + 2];
+    }
+}
+
+__global__
+void kernel_binary(unsigned int* img, unsigned size, int threashold) {
+    // Compute index of thread
+    int g_block_idx = blockIdx.x + blockIdx.y * gridDim.x;
+    int th_block = blockDim.x * blockDim.y;
+    int g_idx = g_block_idx * th_block + threadIdx.x + threadIdx.y * blockDim.x;
+
+    // Compute index of pixel to alter
+    int k = g_idx * 3;
+
+    // Compute grey color and assign it to all componant
+    if (g_idx<size) {
+        int color = ((img[k+0]*0.299 + img[k+1]*0.587 + img[k+2]*0.114) >= threashold) * 255;
+        img[k] = color;
+        img[k + 1] = color;
+        img[k + 2] = color;
+    }
+}

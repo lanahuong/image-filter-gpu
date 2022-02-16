@@ -17,7 +17,7 @@ using namespace std;
 
 const char *argp_program_version = "version 1.0";
 
-enum filter {NONE, SAT, HMIR, SBLUR, BLUR, GREY, SOBEL, POP};
+enum filter {NONE, SAT, HMIR, SBLUR, BLUR, GREY, SOBEL, POP, NEG, BIN};
 
 struct arguments {
   char *inputFile;
@@ -60,6 +60,12 @@ static int parse_opt(int key, char *arg, struct argp_state *state) {
   case 'p':
     a->f = POP;
     break;
+  case 'n':
+    a->f = NEG;
+    break;
+  case 'i':
+    a->f = BIN;
+    a->filter_arg = 255 * (int) strtol(arg, NULL, 10) / 100;
   case ARGP_KEY_ARG:
     // If there are more than one argument show usage
     if (state->arg_num > 1) {
@@ -91,6 +97,8 @@ int main (int argc , char** argv)
       {"grey", 'g', 0, 0, "Change the image to greyscale"},
       {"sobel", 'e', 0, 0, "Apply the the SOBEL filter for edge detection"},
       {"pop-art", 'p', 0, 0, "Apply the pop-art filter"},
+      {"negative", 'n', 0, 0, "Negate the image"},
+      {"binary", 'i', "percentage", 0, "Change the image to black and white"},
       {0}
 };
   struct argp argp = {options, parse_opt, "FILE", 0};
@@ -152,6 +160,12 @@ int main (int argc , char** argv)
   gridSize.x = width / 32 +1;
   gridSize.y = height / 32 +1;
 
+  // Timing treatments
+  float duration = 0.;
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
   // Data transfer
   cudaMemcpy(d_img, img, alloc_size, cudaMemcpyHostToDevice);
   if (arguments.f == HMIR || arguments.f == SOBEL || arguments.f == BLUR) {
@@ -161,15 +175,19 @@ int main (int argc , char** argv)
   // Kernel calls
   switch (arguments.f) {
     case SAT:
+      cudaEventRecord(start);
       kernel_sat1<<<gridSize,blockSize>>>(d_img, (unsigned) arguments.filter_arg, image_size);
       break;
     case GREY:
+      cudaEventRecord(start);
       kernel_grey<<<gridSize,blockSize>>>(d_img, image_size);
       break;
     case HMIR:
+      cudaEventRecord(start);
       kernel_hmirror<<<gridSize,blockSize>>>(d_img, d_img_tmp, width, height);
       break;
     case SBLUR:
+      cudaEventRecord(start);
       for (int i = 0; i<arguments.filter_arg; i++) {
         cudaMemcpy(d_img_tmp, img, alloc_size, cudaMemcpyHostToDevice);
         kernel_blur<<<gridSize,blockSize>>>(d_img, d_img_tmp, width, height);
@@ -177,20 +195,35 @@ int main (int argc , char** argv)
       }
       break;
     case BLUR:
+      cudaEventRecord(start);
       run_blur(img, d_img, d_img_tmp, width, height, blockSize, gridSize, arguments.filter_arg);
       //run_blur_(img, d_img, d_img_tmp, width, height, blockSize, gridSize);
       break;
     case SOBEL:
+      cudaEventRecord(start);
       run_sobel(img, d_img, d_img_tmp, width, height, blockSize, gridSize);
       break;
     case POP:
+      cudaEventRecord(start);
       run_popart(img, d_img, d_img_tmp, width, height);
+      break;
+    case NEG:
+      cudaEventRecord(start);
+      kernel_negative<<<gridSize,blockSize>>>(d_img, image_size);
+      break;
+    case BIN:
+      cudaEventRecord(start);
+      kernel_binary<<<gridSize,blockSize>>>(d_img, image_size, arguments.filter_arg);
       break;
   }
 
   // Copy back
   if (arguments.f != POP && arguments.f != SBLUR)
     cudaMemcpy(img, d_img, alloc_size, cudaMemcpyDeviceToHost);
+
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&duration, start, stop);
 
   bits = (BYTE*)FreeImage_GetBits(bitmap);
   for ( int y =0; y<height; y++)
@@ -217,6 +250,8 @@ int main (int argc , char** argv)
   if( FreeImage_Save (FIF_JPEG, bitmap , PathDest , 0 ))
     cout << "Image successfully saved ! " << endl ;
   FreeImage_DeInitialise(); //Cleanup !
+
+  cout << "Treatement time : " << duration << "ms" << endl ;
 
   free(img);
   cudaFree(d_img);

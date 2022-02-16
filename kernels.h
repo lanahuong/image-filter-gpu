@@ -18,6 +18,8 @@ __global__ void kernel_reduction(unsigned int *new_img, unsigned int *img,
                                  unsigned width, unsigned height);
 __global__ void kernel_recompose(unsigned int *new_img, unsigned int *img,
                                  unsigned width, unsigned height);
+__global__ void kernel_negative(unsigned int *img, unsigned size);
+__global__ void kernel_binary(unsigned int *img, unsigned size, int threashold);
 
 // Helper function for more complex opérations with kernels
 void run_blur_(unsigned int *img, unsigned int *d_img, unsigned int *d_img_tmp,
