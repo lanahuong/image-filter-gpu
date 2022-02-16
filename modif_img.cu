@@ -126,7 +126,7 @@ int main (int argc , char** argv)
 
   // GPU memory allocation
   cudaMalloc((void **) &d_img, alloc_size);
-  if (arguments.f == HMIR || arguments.f == SOBEL || arguments.f == SBLUR || arguments.f == BLUR) {
+  if (arguments.f == HMIR || arguments.f == SOBEL || arguments.f == SBLUR || arguments.f == BLUR || arguments.f == POP) {
     cudaMalloc((void **) &d_img_tmp, alloc_size);
   }
 
@@ -184,7 +184,7 @@ int main (int argc , char** argv)
       run_sobel(img, d_img, d_img_tmp, width, height, blockSize, gridSize);
       break;
     case POP:
-      run_popart(img, d_img, width, height);
+      run_popart(img, d_img, d_img_tmp, width, height);
       break;
   }
 

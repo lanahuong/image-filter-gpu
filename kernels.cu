@@ -265,10 +265,34 @@ void kernel_reduction(unsigned int* new_img, unsigned int* img, unsigned width, 
     }
 }
 
-void run_popart(unsigned int* img, unsigned int* d_img, unsigned width, unsigned height) {
-  unsigned image_size = width * height;
-  unsigned alloc_size = sizeof(unsigned int) * image_size * 3;
+__global__
+void kernel_recompose(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
+    unsigned size = width * height;
 
+    // Compute index of thread
+    int g_block_idx = blockIdx.x + blockIdx.y * gridDim.x;
+    int th_block = blockDim.x * blockDim.y;
+    int b_idx = threadIdx.x + threadIdx.y * blockDim.x;
+    int g_idx = g_block_idx * th_block + b_idx;
+
+    // Compute index of pixel to copy
+    int k = g_idx * 3;
+
+    // Compute the row and column of the pixel to copy
+    int i = g_idx / width;
+    int j = g_idx % width;
+
+    // Compute index of pixel to set
+    int kk = (i * width * 2 + j) * 3;
+
+    if (g_idx<size) {
+        new_img[kk] = img[k];
+        new_img[kk + 1] = img[k + 1];
+        new_img[kk + 2] = img[k + 2];
+    }
+}
+
+void run_popart(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height) {
   unsigned image_size_small = width * height / 4;
   unsigned alloc_size_small = sizeof(unsigned int) * image_size_small * 3;
 
@@ -278,7 +302,6 @@ void run_popart(unsigned int* img, unsigned int* d_img, unsigned width, unsigned
   gridSize.y = height / 64 +1;
 
   unsigned int *img_small = (unsigned int*) malloc(alloc_size_small);
-  unsigned int* img_tmp = (unsigned int*) malloc(alloc_size);
   unsigned int *d_img_small;
 
   cudaMalloc((void **) &d_img_small, alloc_size_small);
@@ -293,54 +316,29 @@ void run_popart(unsigned int* img, unsigned int* d_img, unsigned width, unsigned
       cudaStreamCreate(&stream[i]);
   }
 
+  int offset_final[4];
+  offset_final[0] = 0;
+  offset_final[1] = 3 * width / 2;
+  offset_final[2] = image_size_small * 6;
+  offset_final[3] = offset_final[2] + offset_final[1];
+
   for (int i = 0; i<nstreams; i++) {
     int offset = i * image_size_small * 3;
-    cudaMemcpyAsync(d_img+offset, img_small, alloc_size_small, cudaMemcpyHostToDevice, stream[i]);
+    cudaMemcpyAsync(d_img_tmp+offset, img_small, alloc_size_small, cudaMemcpyHostToDevice, stream[i]);
     if (i == 0) {
-      kernel_grey<<<gridSize,blockSize,0,stream[i]>>>(d_img, image_size_small);
+      kernel_grey<<<gridSize,blockSize,0,stream[i]>>>(d_img_tmp, image_size_small);
     } else {
-        kernel_sat1<<<gridSize,blockSize,0,stream[i]>>>(d_img+offset, i, image_size_small);
+        kernel_sat1<<<gridSize,blockSize,0,stream[i]>>>(d_img_tmp+offset, i, image_size_small);
     }
-    cudaMemcpyAsync(img_tmp+offset, d_img+offset, alloc_size_small, cudaMemcpyDeviceToHost, stream[i]);
+    kernel_recompose<<<gridSize,blockSize,0,stream[i]>>>(d_img+offset_final[i], d_img_tmp+offset, width/2, height/2);
+  }
+
+  for (int i = 0; i<nstreams; i++) {
+    int offset = i * image_size_small * 3;
+    cudaMemcpyAsync(img+offset, d_img+offset, alloc_size_small, cudaMemcpyDeviceToHost, stream[i]);
   }
 
   cudaDeviceSynchronize();
-
-  int k = 0;
-  int kk = 0;
-  for (int i = 0; i< height/2; i++) {
-      for (int j = 0; j<3*width/2; j++) {
-          img[k] = img_tmp[kk];
-          k++;
-          kk++;
-      }
-      kk += 3*image_size_small - 3*width/2;
-      for (int j = 0; j<3*width/2; j++) {
-          img[k] = img_tmp[kk];
-          k++;
-          kk++;
-      }
-      kk -= 3*image_size_small;
-  }
-  kk += 3*image_size_small;
-  for (int i = 0; i< height/2; i++) {
-      for (int j = 0; j<3*width/2; j++) {
-          img[k] = img_tmp[kk];
-          k++;
-          kk++;
-      }
-      kk += 3*image_size_small - 3*width/2;
-      for (int j = 0; j<3*width/2; j++) {
-          img[k] = img_tmp[kk];
-          k++;
-          kk++;
-      }
-      kk -= 3*image_size_small;
-  }
-
-  for (int i = 0; i<nstreams; i++) {
-      cudaStreamDestroy(stream[i]);
-  }
 
   free(img_small);
   cudaFree(d_img_small);
