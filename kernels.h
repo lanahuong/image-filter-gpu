@@ -7,6 +7,8 @@ __global__ void kernel_grey(unsigned int *img, unsigned size);
 __global__ void kernel_grey(unsigned int *img, unsigned size);
 __global__ void kernel_hmirror(unsigned int *new_img, unsigned int *img,
                                unsigned width, unsigned height);
+__global__ void kernel_vmirror(unsigned int *new_img, unsigned int *img,
+                               unsigned width, unsigned height);
 __global__ void kernel_blur(unsigned int *new_img, unsigned int *img,
                             unsigned width, unsigned height);
 __global__ void kernel_convolution_rgb(unsigned int *new_img, unsigned int *img,

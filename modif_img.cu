@@ -17,7 +17,7 @@ using namespace std;
 
 const char *argp_program_version = "version 1.0";
 
-enum filter {NONE, SAT, HMIR, SBLUR, BLUR, GREY, SOBEL, POP, NEG, BIN};
+enum filter {NONE, SAT, HMIR, VMIR, SBLUR, BLUR, GREY, SOBEL, POP, NEG, BIN};
 
 struct arguments {
   char *inputFile;
@@ -50,6 +50,9 @@ static int parse_opt(int key, char *arg, struct argp_state *state) {
     break;
   case 'h':
     a->f = HMIR;
+    break;
+  case 'v':
+    a->f = VMIR;
     break;
   case 'g':
     a->f = GREY;
@@ -94,6 +97,7 @@ int main (int argc , char** argv)
       {"static-blur", 'f', "n", 0, "Apply an average blur as describe in the subject n times"},
       {"blur", 'b', "r", 0, "Apply an average blur with radius r"},
       {"h-mirror", 'h', 0, 0, "Mirror the image horizontally"},
+      {"v-mirror", 'v', 0, 0, "Mirror the image vertically"},
       {"grey", 'g', 0, 0, "Change the image to greyscale"},
       {"sobel", 'e', 0, 0, "Apply the the SOBEL filter for edge detection"},
       {"pop-art", 'p', 0, 0, "Apply the pop-art filter"},
@@ -134,7 +138,7 @@ int main (int argc , char** argv)
 
   // GPU memory allocation
   cudaMalloc((void **) &d_img, alloc_size);
-  if (arguments.f == HMIR || arguments.f == SOBEL || arguments.f == SBLUR || arguments.f == BLUR || arguments.f == POP) {
+  if (arguments.f == HMIR || arguments.f == VMIR || arguments.f == SOBEL || arguments.f == SBLUR || arguments.f == BLUR || arguments.f == POP) {
     cudaMalloc((void **) &d_img_tmp, alloc_size);
   }
 
@@ -168,7 +172,7 @@ int main (int argc , char** argv)
 
   // Data transfer
   cudaMemcpy(d_img, img, alloc_size, cudaMemcpyHostToDevice);
-  if (arguments.f == HMIR || arguments.f == SOBEL || arguments.f == BLUR) {
+  if (arguments.f == HMIR || arguments.f == VMIR || arguments.f == SOBEL || arguments.f == BLUR) {
     cudaMemcpy(d_img_tmp, img, alloc_size, cudaMemcpyHostToDevice);
   }
 
@@ -185,6 +189,10 @@ int main (int argc , char** argv)
     case HMIR:
       cudaEventRecord(start);
       kernel_hmirror<<<gridSize,blockSize>>>(d_img, d_img_tmp, width, height);
+      break;
+    case VMIR:
+      cudaEventRecord(start);
+      kernel_vmirror<<<gridSize,blockSize>>>(d_img, d_img_tmp, width, height);
       break;
     case SBLUR:
       cudaEventRecord(start);

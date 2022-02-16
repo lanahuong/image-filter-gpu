@@ -64,6 +64,31 @@ void kernel_hmirror(unsigned int* new_img, unsigned int* img, unsigned width, un
 }
 
 __global__
+void kernel_vmirror(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
+    unsigned size = width * height;
+
+    // Compute index of thread
+    int g_block_idx = blockIdx.x + blockIdx.y * gridDim.x;
+    int th_block = blockDim.x * blockDim.y;
+    int g_idx = g_block_idx * th_block + threadIdx.x + threadIdx.y * blockDim.x;
+
+    // Compute index of pixel to alter
+    int k = g_idx * 3;
+
+    // Compute the index of the last pixel in the column
+    int kk = ((g_idx % width) + (height - 1) * width) * 3;
+    // Compute the offset of the row of the pixel to alter
+    int i = (g_idx / width) * 3 * width;
+
+    // Assign each pixel the color of the opposite pixel on the line
+    if (g_idx<size) {
+        new_img[k] = img[kk - i];
+        new_img[k + 1] = img[kk - i + 1];
+        new_img[k + 2] = img[kk - i + 2];
+    }
+}
+
+__global__
 void kernel_blur(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
     unsigned size = width * height;
 
