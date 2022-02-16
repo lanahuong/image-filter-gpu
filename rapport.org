@@ -23,6 +23,10 @@ cette raison j'ai changé l'enrgistrement de l'image au format JPEG ce qui perme
 d'appliquer plusieurs filtres à la suite.  Une autre raison est que l'image PNG
 était presque 10 fois plus grosse ce qui posait problème pour ma connexion.
 
+Je mesure le temps d'exécution des filtres en prenant en compte l'éventuel
+paramétrage qui a lieu avant l'appelle des kernel et la recopie de l'image
+sur l'hote.
+
 Avec le flag ~--help~ on peut consulter les flags disponible et leur effet.
 
 * Détails sur quelques kernels
@@ -71,4 +75,9 @@ J'ai implémenté un kernel qui réduit l'image à un quart de sa taille initial
 Ensuite, j'utilise les streams pour envoyer l'image réduite sur le GPU lui appliquer un filtre
 indépendement du traitement des autres exemplaires.
 
-Je recopie les 4 images dans la frame initiale depuis le CPU.
+Je recopie les 4 images dans la frame initiale avec le ~kernel_recompose~ en utilisant les streams.
+
+** Filtres additionnels
+
+J'ai également implémenté un filtre négatif (que vous appellez diapositive), un filtre qui binarise
+l'image selon un seuil donné un pourcentage, un miroir vertical.

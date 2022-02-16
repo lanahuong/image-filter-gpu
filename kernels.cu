@@ -1,5 +1,10 @@
 #include <cuda.h>
 
+/** Saturate one color component of the image
+ * @param img the final image
+ * @param rgb_sat a number that identify the component to saturate : red is 0, green is 1 and blue is 2
+ * @param size the number of pixels that compose an image
+ */
 __global__
 void kernel_sat1(unsigned int* img, int rgb_sat, unsigned size) {
     // Compute index of thread
@@ -19,6 +24,10 @@ void kernel_sat1(unsigned int* img, int rgb_sat, unsigned size) {
     }
 }
 
+/** Turn the image to greyscale
+ * @param img the image to modify and final image
+ * @param size the number of pixels that compose an image
+ */
 __global__
 void kernel_grey(unsigned int* img, unsigned size) {
     // Compute index of thread
@@ -38,6 +47,12 @@ void kernel_grey(unsigned int* img, unsigned size) {
     }
 }
 
+/** Flip the image horizontally
+ * @param new_img the final image
+ * @param img a copy of the image to modify
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ */
 __global__
 void kernel_hmirror(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
     unsigned size = width * height;
@@ -63,6 +78,12 @@ void kernel_hmirror(unsigned int* new_img, unsigned int* img, unsigned width, un
     }
 }
 
+/** Flip the image vertically
+ * @param new_img the final image
+ * @param img a copy of the image to modify
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ */
 __global__
 void kernel_vmirror(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
     unsigned size = width * height;
@@ -88,6 +109,13 @@ void kernel_vmirror(unsigned int* new_img, unsigned int* img, unsigned width, un
     }
 }
 
+
+/** Simple blur using direct neighbors (up, down, left and right)
+ * @param new_img the final image
+ * @param img a copy of the image to modify
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ */
 __global__
 void kernel_blur(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
     unsigned size = width * height;
@@ -117,6 +145,14 @@ void kernel_blur(unsigned int* new_img, unsigned int* img, unsigned width, unsig
     }
 }
 
+/** Compute the convolution of an image with a kernel (matrix)
+ * @param new_img the final image
+ * @param img a copy of the image to modify
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ * @param kernel the kernel (matrix) to use for the convolution
+ * @param kernel_size the side dimension of the kernel (if size is 3 then the kernel has 9 coefficient), it should be an odd number
+ */
 __global__
 void kernel_convolution_rgb(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height, float* kernel, unsigned int kernel_size) {
     unsigned size = width * height;
@@ -163,7 +199,15 @@ void kernel_convolution_rgb(unsigned int* new_img, unsigned int* img, unsigned w
     }
 }
 
-void run_blur_(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize) {
+/** Simple blur using direct neighbors (up, down, left and right) with a convolution
+ * @param d_img the final image on GPU
+ * @param d_img_tmp a copy of the image to modify on GPU
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ * @param kernel blockSize the block dimensions for launching the kernel
+ * @param kernel gridSize the grid dimensions for launching the kernel
+ */
+void run_blur_v2(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize) {
   // Create the kernel and send it to the GPU
   float kernel[9] = {0.f, 0.2f, 0.f, 0.2f, 0.2f, 0.2f, 0.f, 0.2f, 0.f};
   float *d_kernel;
@@ -176,6 +220,15 @@ void run_blur_(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, 
   cudaFree(d_kernel);
 }
 
+/** Blur an image with an average blur of given radius
+ * @param d_img the final image on GPU
+ * @param d_img_tmp a copy of the image to modify on GPU
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ * @param blockSize the block dimensions for launching the kernel
+ * @param gridSize the grid dimensions for launching the kernel
+ * @param r the radius of the blur kernel
+ */
 void run_blur(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize, int r) {
   int k_size = 2 * r + 1;
   int k_size2 = k_size * k_size;
@@ -197,6 +250,13 @@ void run_blur(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, u
   cudaFree(d_kernel);
 }
 
+/** Compute the SOBEL filter on a greyscale image
+ * @param new_img the final image
+ * @param img the image to modify
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ * @param kernel the sobel kernels (2 in 1)
+ */
 __global__
 void kernel_sobel(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height, int* kernels) {
     unsigned size = width * height;
@@ -239,6 +299,15 @@ void kernel_sobel(unsigned int* new_img, unsigned int* img, unsigned width, unsi
     }
 }
 
+/** Run the SOBEL edge detection filter
+ * @param img the image on CPU
+ * @param d_img the final image on GPU
+ * @param d_img_tmp a copy of the image to modify on GPU
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ * @param blockSize the block dimensions for launching the kernel
+ * @param gridSize the grid dimensions for launching the kernel
+ */
 void run_sobel(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize) {
   unsigned image_size = width*height;
   unsigned alloc_size = sizeof(unsigned int) * image_size * 3;
@@ -260,6 +329,12 @@ void run_sobel(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, 
   cudaFree(d_kernel);
 }
 
+/** Compute the reduction of an image to a forth of it's size
+ * @param new_img the final image it has the size of the reduced image
+ * @param img the image to modify
+ * @param width the pixel width of the original image
+ * @param height the pixel height of the original image
+ */
 __global__
 void kernel_reduction(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
     unsigned size = width * height * 0.25;
@@ -290,6 +365,12 @@ void kernel_reduction(unsigned int* new_img, unsigned int* img, unsigned width, 
     }
 }
 
+/** Copy a small image in one corner of a large one
+ * @param new_img a pointer to the starting pixel where the small image shoud be copied
+ * @param img the small image to copy back in a corner of the frame
+ * @param width the pixel width of the small image
+ * @param height the pixel height of the small image
+ */
 __global__
 void kernel_recompose(unsigned int* new_img, unsigned int* img, unsigned width, unsigned height) {
     unsigned size = width * height;
@@ -317,6 +398,13 @@ void kernel_recompose(unsigned int* new_img, unsigned int* img, unsigned width, 
     }
 }
 
+/** Apply a pop-art filter on the image
+ * @param img the image on CPU
+ * @param d_img the final image on GPU
+ * @param d_img_tmp a copy of the image to modify on GPU
+ * @param width the pixel width of the image
+ * @param height the pixel height of the image
+ */
 void run_popart(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height) {
   unsigned image_size_small = width * height / 4;
   unsigned alloc_size_small = sizeof(unsigned int) * image_size_small * 3;
@@ -369,6 +457,10 @@ void run_popart(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp,
   cudaFree(d_img_small);
 }
 
+/** Negate the image
+ * @param img the image to modify and final image
+ * @param size the number of pixels that compose an image
+ */
 __global__
 void kernel_negative(unsigned int* img, unsigned size) {
     // Compute index of thread
@@ -387,6 +479,11 @@ void kernel_negative(unsigned int* img, unsigned size) {
     }
 }
 
+/** Turn the image black and white depending on a given threashold
+ * @param img the image to modify and final image
+ * @param size the number of pixels that compose an image
+ * @param threashold the threashold above which the pixel is black else it's black
+ */
 __global__
 void kernel_binary(unsigned int* img, unsigned size, int threashold) {
     // Compute index of thread
