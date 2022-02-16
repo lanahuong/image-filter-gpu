@@ -204,7 +204,7 @@ int main (int argc , char** argv)
       break;
     case BLUR:
       cudaEventRecord(start);
-      run_blur(img, d_img, d_img_tmp, width, height, blockSize, gridSize, arguments.filter_arg);
+      run_blur(d_img, d_img_tmp, width, height, blockSize, gridSize, arguments.filter_arg);
       //run_blur_(img, d_img, d_img_tmp, width, height, blockSize, gridSize);
       break;
     case SOBEL:

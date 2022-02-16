@@ -24,11 +24,10 @@ __global__ void kernel_negative(unsigned int *img, unsigned size);
 __global__ void kernel_binary(unsigned int *img, unsigned size, int threashold);
 
 // Helper function for more complex opérations with kernels
-void run_blur_(unsigned int *img, unsigned int *d_img, unsigned int *d_img_tmp,
-               unsigned width, unsigned height, dim3 blockSize, dim3 gridSize);
-void run_blur(unsigned int *img, unsigned int *d_img, unsigned int *d_img_tmp,
-              unsigned width, unsigned height, dim3 blockSize, dim3 gridSize,
-              int r);
+void run_blur_v2(unsigned int *d_img, unsigned int *d_img_tmp, unsigned width,
+                 unsigned height, dim3 blockSize, dim3 gridSize);
+void run_blur(unsigned int *d_img, unsigned int *d_img_tmp, unsigned width,
+              unsigned height, dim3 blockSize, dim3 gridSize, int r);
 void run_sobel(unsigned int *img, unsigned int *d_img, unsigned int *d_img_tmp,
                unsigned width, unsigned height, dim3 blockSize, dim3 gridSize);
 void run_popart(unsigned int *img, unsigned int *d_img, unsigned int *d_img_tmp,

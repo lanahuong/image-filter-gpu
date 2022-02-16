@@ -207,7 +207,7 @@ void kernel_convolution_rgb(unsigned int* new_img, unsigned int* img, unsigned w
  * @param kernel blockSize the block dimensions for launching the kernel
  * @param kernel gridSize the grid dimensions for launching the kernel
  */
-void run_blur_v2(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize) {
+void run_blur_v2(unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize) {
   // Create the kernel and send it to the GPU
   float kernel[9] = {0.f, 0.2f, 0.f, 0.2f, 0.2f, 0.2f, 0.f, 0.2f, 0.f};
   float *d_kernel;
@@ -229,7 +229,7 @@ void run_blur_v2(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp
  * @param gridSize the grid dimensions for launching the kernel
  * @param r the radius of the blur kernel
  */
-void run_blur(unsigned int* img, unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize, int r) {
+void run_blur(unsigned int* d_img, unsigned int* d_img_tmp, unsigned width, unsigned height, dim3 blockSize, dim3 gridSize, int r) {
   int k_size = 2 * r + 1;
   int k_size2 = k_size * k_size;
   int k_alloc = sizeof(float) * k_size2;
