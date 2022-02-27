@@ -2,6 +2,12 @@
 
 This is a GPU programming project in CUDA.
 
+## Requirements
+
+You will of couse need an NVIDIA GPU and cuda installed.
+
+You also need the FreeImage library. It may be available from repos in your distribution if not or if you are running on a cluster you can download it and install it from https://freeimage.sourceforge.io/download.html . I made this project with version 3.18.0.
+
 ## Building
 
 If you are on a cluster environnement check the `env.sh` and change the modules for the ones available on your cluster. Then you need to source this file.
